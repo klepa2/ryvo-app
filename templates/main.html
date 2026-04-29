@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>RYVO | {{ title }}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a1628;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            padding-bottom: 80px;
+        }
+
+        .header {
+            background: #0f1a2e;
+            padding: 15px 20px;
+            border-bottom: 1px solid #1e2a44;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 24px;
+        }
+
+        .header h1 span {
+            color: #1a73e8;
+        }
+
+        .content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .create-btn {
+            display: inline-block;
+            background: #1a73e8;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 30px;
+            margin-bottom: 20px;
+        }
+
+        .event {
+            background: #1e2a44;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+
+        .event h2 {
+            color: white;
+            font-size: 18px;
+        }
+
+        .creator {
+            color: #6b7b9e;
+            font-size: 12px;
+        }
+
+        .event-details {
+            color: #a0b3d9;
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        .participants {
+            background: #0f1a2e;
+            padding: 6px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            font-size: 13px;
+            color: #a0b3d9;
+            margin: 10px 0;
+        }
+
+        .join-btn {
+            background: #1e8e3e;
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 25px;
+            display: inline-block;
+        }
+
+        .bottom-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: #0f1a2e;
+            display: flex;
+            justify-content: space-around;
+            padding: 12px 20px 20px;
+            border-top: 1px solid #1e2a44;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            text-decoration: none;
+            color: #6b7b9e;
+            font-size: 12px;
+            padding: 8px 16px;
+            border-radius: 30px;
+        }
+
+        .nav-item.active {
+            color: #1a73e8;
+            background: rgba(26, 115, 232, 0.1);
+        }
+
+        .nav-icon {
+            font-size: 24px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <h1>RYVO<span>.</span></h1>
+    </div>
+    <div class="content">
+        <a href="/create" class="create-btn">➕ Создать мероприятие</a>
+        {% for event in events %}
+        <div class="event">
+            <h2>{{ event.title }}</h2>
+            <div class="creator">{{ event.creator_name }}</div>
+            <div class="event-details">📅 {{ event.date }}</div>
+            <div class="event-details">📍 {{ event.location }}</div>
+            {% if event.description %}<div class="event-details">📝 {{ event.description }}</div>{% endif %}
+            <div class="participants">👥 Участников: {{ event.participants }} / {{ event.max_participants }}</div>
+            <a href="/join/{{ event.id }}" class="join-btn">➕ Присоединиться</a>
+        </div>
+        {% endfor %}
+        {% if not events %}
+        <div style="text-align:center; color:#a0b3d9; padding:40px; background:#1e2a44; border-radius:16px;">
+            <p>✨ Пока нет мероприятий</p>
+        </div>
+        {% endif %}
+    </div>
+    <div class="bottom-nav">
+        <a href="/" class="nav-item {% if active_tab == 'all' %}active{% endif %}">
+            <span class="nav-icon">📋</span><span>Все</span>
+        </a>
+        <a href="/my-chats" class="nav-item {% if active_tab == 'my' %}active{% endif %}">
+            <span class="nav-icon">💬</span><span>Чаты</span>
+        </a>
+        <a href="/profile" class="nav-item {% if active_tab == 'profile' %}active{% endif %}">
+            <span class="nav-icon">👤</span><span>Профиль</span>
+        </a>
+    </div>
+</body>
+
+</html>

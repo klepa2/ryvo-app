@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Чат | RYVO</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <a href="/my-chats" class="back-btn">←</a>
+            <h2>💬 Чат мероприятия</h2>
+            <button class="leave-btn" onclick="leaveChat()">Выйти</button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="status">Загрузка сообщений...</div>
+        </div>
+
+        <div class="chat-input">
+            <input type="text" id="message-input" placeholder="Написать сообщение..."
+                onkeypress="if(event.key==='Enter') sendMessage()">
+            <button onclick="sendMessage()">➤</button>
+        </div>
+    </div>
+
+    <script>
+        const eventId = {{ event_id }};
+        const userId = {{ user_id }};
+        const currentUsername = "{{ username }}";
+
+        async function loadMessages() {
+            try {
+                const response = await fetch('/api/messages/' + eventId);
+                const data = await response.json();
+                const container = document.getElementById('chat-messages');
+                container.innerHTML = '';
+                if (data.messages && data.messages.length > 0) {
+                    data.messages.forEach(msg => addMessage(msg));
+                } else {
+                    container.innerHTML = '<div class="status">💬 Сообщений пока нет</div>';
+                }
+                container.scrollTop = container.scrollHeight;
+            } catch (e) {
+                console.error(e);
+                document.getElementById('chat-messages').innerHTML = '<div class="status">⚠️ Ошибка загрузки</div>';
+            }
+        }
+
+        function addMessage(msg) {
+            const container = document.getElementById('chat-messages');
+            const isOwn = (msg.username === currentUsername);
+            const div = document.createElement('div');
+            div.className = 'message ' + (isOwn ? 'message-own' : 'message-other');
+
+            let avatarHtml = '<div class="message-avatar" onclick="showUserProfile(' + msg.user_id + ')">';
+            avatarHtml += msg.avatar ? '<img src="data:image/png;base64,' + msg.avatar + '">' : '👤';
+            avatarHtml += '</div>';
+
+            let replyHtml = '';
+            if (msg.reply_to) {
+                replyHtml = '<div class="reply-indicator">↳ Ответ</div>';
+            }
+
+            let contentHtml = '<div class="message-content">' +
+                '<div class="message-bubble">' +
+                (!isOwn ? '<div class="message-username" onclick="showUserProfile(' + msg.user_id + ')">' + escapeHtml(msg.username) + '</div>' : '') +
+                replyHtml +
+                '<div class="message-text">' + escapeHtml(msg.message || '') + '</div>' +
+                '<div class="message-time">' + (msg.timestamp || '') + (msg.edited ? '<span class="edited-badge">(ред.)</span>' : '') + '</div>' +
+                '</div>' +
+                '</div>';
+
+            let menuHtml = '';
+            if (isOwn) {
+                menuHtml = '<div class="message-menu" onclick="showMenu(event, ' + msg.id + ', \'' + escapeHtml(msg.message || '').replace(/'/g, "\\'") + '\')">⋯</div>';
+            }
+
+            div.innerHTML = avatarHtml + contentHtml + menuHtml;
+            container.appendChild(div);
+        }
+
+        function showMenu(event, msgId, text) {
+            event.stopPropagation();
+            const menu = document.createElement('div');
+            menu.className = 'dropdown-menu';
+            menu.innerHTML = `
+                <div onclick="editMessage('${text}', ${msgId})">✏️ Редактировать</div>
+                <div onclick="copyMessage('${text}')">📋 Копировать</div>
+                <div onclick="deleteMessage(${msgId})">🗑 Удалить</div>
+            `;
+            const rect = event.target.getBoundingClientRect();
+            menu.style.position = 'fixed';
+            menu.style.left = rect.left + 'px';
+            menu.style.top = (rect.bottom + 5) + 'px';
+            menu.style.background = '#1e2a44';
+            menu.style.borderRadius = '12px';
+            menu.style.overflow = 'hidden';
+            menu.style.zIndex = '1000';
+            menu.style.boxShadow = '0 4px 12px rgba(0,0,0,.3)';
+            menu.style.display = 'block';
+            document.body.appendChild(menu);
+            const closeMenu = () => { menu.remove(); document.removeEventListener('click', closeMenu); };
+            setTimeout(() => document.addEventListener('click', closeMenu), 100);
+        }
+
+        function editMessage(text, msgId) {
+            const newText = prompt('Редактировать сообщение:', text);
+            if (newText && newText.trim()) {
+                fetch('/api/edit-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message_id: msgId, user_id: userId, message: newText })
+                }).then(() => loadMessages());
+            }
+        }
+
+        function copyMessage(text) {
+            navigator.clipboard.writeText(text);
+            alert('Скопировано');
+        }
+
+        function deleteMessage(msgId) {
+            if (confirm('Удалить сообщение?')) {
+                fetch('/api/delete-message', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message_id: msgId, user_id: userId })
+                }).then(() => loadMessages());
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            if (!message) return;
+            const response = await fetch('/api/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ event_id: eventId, user_id: userId, message: message })
+            });
+            if (response.ok) {
+                input.value = '';
+                await loadMessages();
+            }
+        }
+
+        async function showUserProfile(targetUserId) {
+            const response = await fetch('/api/user/' + targetUserId);
+            const user = await response.json();
+            alert('👤 ' + user.username + '\n📝 ' + (user.bio || 'Ничего не рассказал'));
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function leaveChat() {
+            if (confirm('Выйти из чата?')) {
+                window.location.href = '/leave/' + eventId;
+            }
+        }
+
+        loadMessages();
+        setInterval(loadMessages, 3000);
+    </script>
+</body>
+
+</html>
